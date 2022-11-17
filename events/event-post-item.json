@@ -1,0 +1,4 @@
+{
+    "httpMethod": "POST",
+    "body": "{\"id\": \"1234\",\"sexo\": \"M\",\"primerNombre\": \"primer nombre\", \"segundoNombre\": \"Segundo nombre\",\"primerApellido\": \"Gonzalez\",\"segundoApellido\": \"Perez 2\",\"fechaNacimiento\": \"2000-05-12\",\"estadoCivil\": \"C\"}"
+}

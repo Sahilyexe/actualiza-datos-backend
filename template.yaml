@@ -1,0 +1,136 @@
+# Plantilla SAM con los recursos serverless necesarios para 
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  actualizacion-datos-bakend
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+- AWS::Serverless-2016-10-31
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+  getByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/get-by-id.getByIdHandler
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: Metodo para consultar a traves de un id.
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the SampleTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref personas
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          SAMPLE_TABLE: !Ref personas
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /Obtener/{id}
+            Method: GET
+
+  # Each Lambda function is defined by properties:
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
+  # This is a Lambda function config associated with the source code: put-item.js
+  putItemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/put-item.putItemHandler
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A simple example includes a HTTP post method to add one item to a DynamoDB table.
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the SampleTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref personas
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          SAMPLE_TABLE: !Ref personas
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /actualizar
+            Method: POST
+       #     RestApiId: !Ref ApiGatewayApi
+  # Simple syntax to create a DynamoDB table with a single attribute primary key, more in
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlesssimpletable
+  # API
+  # ApiGatewayApi:
+  #   Type: AWS::Serverless::Api
+  #   Properties:
+  #     StageName: Prod
+  #     MethodSettings:
+  #       - ResourcePath: /actualizar
+  #         HttpMethod: POST
+  #         CachingEnabled: true
+  #         CacheTtlInSeconds: 300
+  #     Cors: "'*'"
+  #----
+  # DynamoDB table to store item: {id: &lt;ID&gt;, name: &lt;NAME&gt;}
+  personas:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+     BucketName: !Sub 'actualiza-datos-${AWS::Region}-${AWS::AccountId}'
+     VersioningConfiguration: 
+      Status: 'Enabled'
+     PublicAccessBlockConfiguration: 
+       BlockPublicAcls: false
+       BlockPublicPolicy: false
+       IgnorePublicAcls: false
+       RestrictPublicBuckets: false
+     BucketEncryption:
+       ServerSideEncryptionConfiguration:
+         - ServerSideEncryptionByDefault:
+             SSEAlgorithm: 'AES256'
+     WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+   
+   
+  BucketPolicyWebSite:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref WebBucket
+                - /*
+            Principal: '*'
+Outputs:
+  WebEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+
+  WebBucket:
+    Description: "Bucket donde se guarda el front"
+    Value: !Sub 'actualiza-datos-${AWS::Region}-${AWS::AccountId}'
